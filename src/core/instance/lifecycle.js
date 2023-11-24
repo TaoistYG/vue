@@ -143,11 +143,14 @@ export function mountComponent (
   el: ?Element,
   hydrating?: boolean
 ): Component {
-  vm.$el = el
+  vm.$el = el //把el赋值给Vue实例中的$el属性
+  //判断$options中是否有render函数。
   if (!vm.$options.render) {
     vm.$options.render = createEmptyVNode
     if (process.env.NODE_ENV !== 'production') {
       /* istanbul ignore if */
+      //如果在运行时环境中，如果使用了template模板，会出现如下的警告信息。
+      //警告信息：使用的是运行时版本，编译器无效，应该使用完整版，或者是编写render函数。
       if ((vm.$options.template && vm.$options.template.charAt(0) !== '#') ||
         vm.$options.el || el) {
         warn(
@@ -164,9 +167,11 @@ export function mountComponent (
       }
     }
   }
+
+  //触发beforeMount钩子函数，表示的是挂载之前
   callHook(vm, 'beforeMount')
 
-  let updateComponent
+  let updateComponent //完成组件的更新
   /* istanbul ignore if */
   if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
     updateComponent = () => {
@@ -186,6 +191,12 @@ export function mountComponent (
       measure(`vue ${name} patch`, startTag, endTag)
     }
   } else {
+
+    //重点看这一段代码：
+    // vm._render():表示执行的是用户传入的render函数，或者是执行编译器生成的render函数。
+    // render( )函数最终会返回虚拟DOM,把返回的虚拟DOM传递给_update函数。
+    // _update函数，会将虚拟DOM转换成真实的DOM。
+    //也就说该方法执行完毕后，页面会呈现出具体的内容
     updateComponent = () => {
       vm._update(vm._render(), hydrating)
     }
@@ -194,6 +205,7 @@ export function mountComponent (
   // we set this to vm._watcher inside the watcher's constructor
   // since the watcher's initial patch may call $forceUpdate (e.g. inside child
   // component's mounted hook), which relies on vm._watcher being already defined
+  //在 Watcher中调用了updateComponent方法。
   new Watcher(vm, updateComponent, noop, {
     before () {
       if (vm._isMounted && !vm._isDestroyed) {
@@ -207,6 +219,7 @@ export function mountComponent (
   // mounted is called for render-created child components in its inserted hook
   if (vm.$vnode == null) {
     vm._isMounted = true
+    //触发了mounted钩子函数，表明页面已经挂载完毕了。
     callHook(vm, 'mounted')
   }
   return vm

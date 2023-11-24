@@ -4,6 +4,7 @@
 export const hasProto = '__proto__' in {}
 
 // Browser environment sniffing
+// 如果window对象不等于undefined，表明当前环境是浏览器环境
 export const inBrowser = typeof window !== 'undefined'
 export const inWeex = typeof WXEnvironment !== 'undefined' && !!WXEnvironment.platform
 export const weexPlatform = inWeex && WXEnvironment.platform.toLowerCase()

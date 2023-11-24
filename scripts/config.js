@@ -27,8 +27,15 @@ const weexFactoryPlugin = {
 
 const aliases = require('./alias')
 const resolve = p => {
+  //根据传递过来的参数，安装`/`进行分隔，然后获取第一项内容。
+  //很明显这里获取的是 web
   const base = p.split('/')[0]
+  //根据获取到的`web`,从aliases中获取一个值，下面看一下aliases中的内容。
   if (aliases[base]) {
+      //aliases[base]的值:src/platforms/web
+      // p的值为：web/entry-runtime-with-compiler.js
+      //p.slice(base.length + 1)：获取到的就是entry-runtime-with-compiler.js
+      //整个返回的内容是：src/platforms/web/entry-runtime-with-compiler.js 的绝对路径并返回
     return path.resolve(aliases[base], p.slice(base.length + 1))
   } else {
     return path.resolve(__dirname, '../', p)
@@ -121,11 +128,17 @@ const builds = {
   },
   // Runtime+compiler development build (Browser)
   'web-full-dev': {
+    //表示入口文件，我们查找的就是该文件。
     entry: resolve('web/entry-runtime-with-compiler.js'),
+    //出口，打包后的目标文件
     dest: resolve('dist/vue.js'),
+    //模块化的方式，这里是umd
     format: 'umd',
+    //打包方式，env的取值可以是开发模式或者是生产模式
     env: 'development',
+    // 别名设置
     alias: { he: './entity-decoder' },
+    //表示的就是文件的头，打包好的文件的头部信息。
     banner
   },
   // Runtime+compiler production build  (Browser)
@@ -214,6 +227,7 @@ const builds = {
 }
 
 function genConfig (name) {
+  // 环境变量配置赋值
   const opts = builds[name]
   const config = {
     input: opts.entry,
@@ -263,6 +277,8 @@ function genConfig (name) {
   return config
 }
 
+//判断环境变量是否有`TARGET`
+//如果有的话，使用`genConfig()`生成`rollup`配置文件
 if (process.env.TARGET) {
   module.exports = genConfig(process.env.TARGET)
 } else {
