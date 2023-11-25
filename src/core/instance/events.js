@@ -53,11 +53,14 @@ export function eventsMixin (Vue: Class<Component>) {
   const hookRE = /^hook:/
   Vue.prototype.$on = function (event: string | Array<string>, fn: Function): Component {
     const vm: Component = this
+    //如果event是一个数组，遍历该数组，给每一个事件，添加对应的处理函数。
     if (Array.isArray(event)) {
       for (let i = 0, l = event.length; i < l; i++) {
         vm.$on(event[i], fn)
       }
     } else {
+      //如果是字符串，则根据event(事件名称)从_events对象中查找对应内容，如果没有则指定一个空数组，
+      //然后向数组中添加了对应的处理函数。这样每个事件都有了对应的处理函数。
       (vm._events[event] || (vm._events[event] = [])).push(fn)
       // optimize hook:event cost by using a boolean flag marked at registration
       // instead of a hash lookup

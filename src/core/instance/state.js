@@ -37,26 +37,38 @@ const sharedPropertyDefinition = {
 }
 
 export function proxy (target: Object, sourceKey: string, key: string) {
+  // 如果访问get，那么返回的就是this._data中当前属性的值
   sharedPropertyDefinition.get = function proxyGetter () {
     return this[sourceKey][key]
   }
   sharedPropertyDefinition.set = function proxySetter (val) {
     this[sourceKey][key] = val
   }
+
+   //把当前属性注入到Vue实例中
   Object.defineProperty(target, key, sharedPropertyDefinition)
 }
 
 export function initState (vm: Component) {
   vm._watchers = []
+  // 获取options
   const opts = vm.$options
+  //初始化props,并且注入到Vue实例中
   if (opts.props) initProps(vm, opts.props)
+  //初始化methods，把methods中的方法注册到Vue实例中，下面看一下initMethods方法的内部实现
   if (opts.methods) initMethods(vm, opts.methods)
+  //如果options中有data属性会调用initData方法，下面查看一下initData方法内部实现
   if (opts.data) {
-    initData(vm)
+    initData(vm) //初始化data：把data中的成员注入到Vue实例，并且转换成响应式的对象
   } else {
+    //如果没有data属性，会为Vue的实例创建一个空对象，并且将其修改成响应式的。
+    //传入到observe这个方法中转换成响应式的对象
     observe(vm._data = {}, true /* asRootData */)
   }
+
+  //初始化computed，会把computed注册到Vue的实例中，可以自己查看源码
   if (opts.computed) initComputed(vm, opts.computed)
+  //初始化watch，会把watch注册到Vue的实例中，可以自己查看源码
   if (opts.watch && opts.watch !== nativeWatch) {
     initWatch(vm, opts.watch)
   }
@@ -112,6 +124,9 @@ function initProps (vm: Component, propsOptions: Object) {
 
 function initData (vm: Component) {
   let data = vm.$options.data
+  //获取props中的data内容
+  //初始化_data,判断data的类型是不是一个函数如果不是直接返回data，如果是调用getData方法,getData中就是通过call来调用data函数。
+  //其实就是初始化组件中的data,组件中的data就是一个函数，如果是Vue实例中的data,那么就是一个对象。
   data = vm._data = typeof data === 'function'
     ? getData(data, vm)
     : data || {}
@@ -124,10 +139,14 @@ function initData (vm: Component) {
     )
   }
   // proxy data on instance
+  //获取data中的所有属性
   const keys = Object.keys(data)
+  // 获取props
   const props = vm.$options.props
+   // 获取methods
   const methods = vm.$options.methods
   let i = keys.length
+  //判断data中的成员是否和`props/methods`重名。在开发环境中有重名会出现相应的警告信息。
   while (i--) {
     const key = keys[i]
     if (process.env.NODE_ENV !== 'production') {
@@ -145,10 +164,12 @@ function initData (vm: Component) {
         vm
       )
     } else if (!isReserved(key)) {
+       //isReserved方法就是判断当前的属性是否以`_`和`$`开头，如果是以`_`和`$`开头就不会把当前的属性注入到Vue实例中。否则会将当前属性（key的值）注册到Vue的实例中。
       proxy(vm, `_data`, key)
     }
   }
   // observe data
+  //对data做响应式的处理。
   observe(data, true /* asRootData */)
 }
 
@@ -263,29 +284,37 @@ function createGetterInvoker(fn) {
 }
 
 function initMethods (vm: Component, methods: Object) {
-  const props = vm.$options.props
-  for (const key in methods) {
-    if (process.env.NODE_ENV !== 'production') {
-      if (typeof methods[key] !== 'function') {
+  const props = vm.$options.props//获取props
+  for (const key in methods) {//对所有的methods进行遍历
+    if (process.env.NODE_ENV !== 'production') {//在开发环境中
+      if (typeof methods[key] !== 'function') {//获取对应的method如果不是函数，会给出相应的警告
         warn(
           `Method "${key}" has type "${typeof methods[key]}" in the component definition. ` +
           `Did you reference the function correctly?`,
           vm
         )
       }
+      // 如果method的名字与props中的属性名字重名也会给出相应的警告
       if (props && hasOwn(props, key)) {
         warn(
           `Method "${key}" has already been defined as a prop.`,
           vm
         )
       }
+      //判断方法的名称是否为Vue的实例，同时判断方法的名称是否以_或者是$开头。
+        //如果以 _ 开头表示一个私有属性，所以不建议方法名称以 _ 开头。
+        // 以$开头的都是成员都是Vue的成员，所以也不建议方法名称使用$开头
       if ((key in vm) && isReserved(key)) {
         warn(
           `Method "${key}" conflicts with an existing Vue instance method. ` +
           `Avoid defining component methods that start with _ or $.`
         )
       }
-    }
+    }】
+
+    //把method注册到Vue的实例中
+      //首先判断从methods中取出来的方法如果不是"function",返回noop,也就是一个空函数。
+      //如果是"funciton"，返回该函数，同时通过bind修改函数内部this的指向，然后指向到Vue的实例。
     vm[key] = typeof methods[key] !== 'function' ? noop : bind(methods[key], vm)
   }
 }
@@ -339,12 +368,21 @@ export function stateMixin (Vue: Class<Component>) {
       warn(`$props is readonly.`, this)
     }
   }
+
+  //在Vue的实例总初始化了一些属性和者方法。
+  //为Vue的原型上添加`$data`与`$props`属性。也就是完成了`$data`与`$props`的初始化
+  //在这里为什么使用Object.defineProperty添加属性呢？
+  //原因是：第三个参数，第三个参数就是一个约束。
+  //dataDef和propsDef都是对象，并且为其添加了get,在开发环境中添加了set.
+  //在访问`$data`或者是`$props`的时候会执行get,如果在开发环境中向`$data`或者是`$props`赋值会执行set，从而给出相应的错误提示信息
   Object.defineProperty(Vue.prototype, '$data', dataDef)
   Object.defineProperty(Vue.prototype, '$props', propsDef)
 
+  //为Vue的原型上挂在了$set与$delete方法，与Vue.set和Vue.delete是一样的。
   Vue.prototype.$set = set
   Vue.prototype.$delete = del
 
+  //监视数据的变化，
   Vue.prototype.$watch = function (
     expOrFn: string | Function,
     cb: any,

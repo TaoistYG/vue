@@ -14,8 +14,9 @@ let uid = 0
 
 export function initMixin (Vue: Class<Component>) {
   Vue.prototype._init = function (options?: Object) {
+    // Vue实例
     const vm: Component = this
-    // a uid
+    // a uid, 唯一标识
     vm._uid = uid++
 
     let startTag, endTag
@@ -27,14 +28,19 @@ export function initMixin (Vue: Class<Component>) {
     }
 
     // a flag to avoid this being observed
+    //如果是Vue实例，不需要被observe处理。
     vm._isVue = true
     // merge options
+    // 合并options
     if (options && options._isComponent) {
       // optimize internal component instantiation
       // since dynamic options merging is pretty slow, and none of the
       // internal component options needs special treatment.
       initInternalComponent(vm, options)
     } else {
+
+      //将用户掺入的options与Vue构造函数中的options进行合并、
+      //在初始化静态成员的时候已经为Vue构造函数初始化了v-show,v-model,keep-alive等指令和组件
       vm.$options = mergeOptions(
         resolveConstructorOptions(vm.constructor),
         options || {},
@@ -42,20 +48,43 @@ export function initMixin (Vue: Class<Component>) {
       )
     }
     /* istanbul ignore else */
+    //设置渲染的代理对象
     if (process.env.NODE_ENV !== 'production') {
+      //开发环境调用initProxy方法
       initProxy(vm)
     } else {
+      //渲染的时候设置的代理对象就是Vue的实例
+      //在渲染的时候会用到该属性
       vm._renderProxy = vm
     }
     // expose real self
     vm._self = vm
+
+    //下面的函数是完成Vue实例的一些初始化操作。
+    //初始与生命周期相关的属性（$children,$parent,$root,$refs）
     initLifecycle(vm)
+    //初始化当前组件的事件
     initEvents(vm)
+    //初始化了render中所使用的h函数
+    //同时还初始化了$slots/$attrs 等等
+    //在initRender方法中，注意如下两行代码
+              //   vm._c = (a, b, c, d) => createElement(vm, a, b, c, d, false)
+            //vm.$createElement = (a, b, c, d) => createElement(vm, a, b, c, d, true)
+    //当我们在创建一个Vue实例的时候，是可以直接传递一个render函数，render函数需要一个参数就是h函数，
+    //$createElement就是传递过来的h函数。其作用就是将虚拟DOM转换成真实DOM
+    //当我们把template编译成render函数的时候，在内部调用的是_c这个函数，在模板编译的过程中，会看到这个方法
+    // 而$createElement函数，是在new Vue实例的时候传递的render函数所调用的
     initRender(vm)
+    //触发生命周期中的beforeCreate钩子函数
     callHook(vm, 'beforeCreate')
+    //初始化inject，把inject的成员注入到Vue的实例上
     initInjections(vm) // resolve injections before data/props
+    //初始化Vue实例中的methods/computed/watch等，关于该函数会在下一小节中进行讲解
     initState(vm)
+    // 初始化provide
     initProvide(vm) // resolve provide after data/props
+
+    //触发生命周期中的created钩子函数
     callHook(vm, 'created')
 
     /* istanbul ignore if */
@@ -66,6 +95,7 @@ export function initMixin (Vue: Class<Component>) {
     }
 
     // 此处注意,在Vue._init中调用
+    //调用$mount挂载整个页面，并且进行页面的渲染
     if (vm.$options.el) {
       vm.$mount(vm.$options.el)
     }

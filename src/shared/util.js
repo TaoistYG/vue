@@ -228,6 +228,7 @@ export function toArray (list: any, start?: number): Array<any> {
 /**
  * Mix properties into target object.
  */
+// 实现了一个浅拷贝。把一个对象的成员拷贝给另外一个对象
 export function extend (to: Object, _from: ?Object): Object {
   for (const key in _from) {
     to[key] = _from[key]
